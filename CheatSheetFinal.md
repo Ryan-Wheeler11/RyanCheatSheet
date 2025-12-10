@@ -6,13 +6,12 @@
 
 ```python
 # my_print.py
+# This file is a **module** called `my_print`.
 MY_MESSAGE = "Hello!"
 def my_print_func(text: str) -> None:
     print(MY_MESSAGE)
     print(text)
 ```
-This file **is** a module called `my_print`.
-
 ## Step 2 – Import the module in another file
 
 ```python
@@ -42,15 +41,16 @@ from my_print import MY_MESSAGE, my_print_func
 def main():
     my_print_func("Example.")
     print(MY_MESSAGE)
+    # * This pulls MY_MESSAGE and my_print_func directly into the current module.
+    # Then you don’t need the my_print. prefix for my_print.my_print_func().
 ```
 
-* This pulls `MY_MESSAGE` and `my_print_func` **directly** into the current namespace.
-* Then you don’t need the `my_print.` prefix.
+
 
 # **2. Packages, directory structure, and `__init__.py`**
 
 A **package** is a folder that Python treats as a “big module.”
-Classic rule: it has an `__init__.py` inside.
+Classic rule: **Every folder with `__init__.py` = package.** Every `.py` file = module
 
 ## 2.1 Example directory structure
 
@@ -71,11 +71,7 @@ my_game/                # top-level folder (project)
 │   ├── game.py         # MODULE 'game'
 │   └── win.py          # MODULE 'win'
 ```
-
-* Every `.py` file = module.
-* **Every folder with `__init__.py` = package.**
 * Packages can contain:
-
   * modules (`game.py`)
   * subpackages (`computer/`).
 
@@ -86,96 +82,54 @@ my_game/                # top-level folder (project)
 Imagine this simplified structure:
 
 ```text
-logic/
-├── __init__.py
-├── constants/
-│   ├── __init__.py
-│   ├── player.py      # NUMBER_PLAYERS_Variable = 10
-│   └── bot.py         # AIMBOT_PRECISION_Variable = 1.0
-└── game.py
+my_app/
+├── main.py              # uses: from logic import NUMBER_PLAYERS
+└── logic/               # package
+    ├── __init__.py      # YOU ARE HERE
+    ├── constants/
+    │   ├── __init__.py
+    │   ├── player.py      # NUMBER_PLAYERS = 10
+    │   └── bot.py         # AIMBOT_PRECISION = 1.0
+    └── game.py
 ```
 
-### INSIDE `logic/__init__.py`
-
 ```python
-# logic/__init__.py
+# INSIDE logic/__init__.py
 from .constants.player import NUMBER_PLAYERS
 from .constants.bot import AIMBOT_PRECISION
 ```
 
-### Now in **`main.py`**: Much more simple to use with all imports in `__init__.py`
+### Now in **`main.py`**: Much more simple to use with all imports in `__init__.py` (`__init__.py` is the middleman!)
 
 ```python
-from logic import NUMBER_PLAYERS, AIMBOT_PRECISION 
+from logic import NUMBER_PLAYERS, AIMBOT_PRECISION # logic is now a package we can use
 
-print(NUMBER_PLAYERS)
-print(AIMBOT_PRECISION)
+print(NUMBER_PLAYERS) # print 10
+print(AIMBOT_PRECISION) # prints 1.0
 ```
 
-So:
 
-* Even tho they are going into **init**.py we use `from logic import (var/class/function)`
+* Even tho they are going into `__init__.py` we use `from logic import x`
 * When you do `import logic`, Python runs `logic/__init__.py`.
 * Whatever you import there becomes available as attributes on the `logic` package.
 
-# **Absolute vs Relative Imports**
+## Absolute vs Relative Imports **(without `__init__.py` setup to make `logic` a package)**
+```python 
+# ABSOLUTE IMPORT: start from top 
+from logic.constants.player import NUMBER_PLAYERS # 1) Inside main.py  (see tree above)
+# 2) Inside logic/game.py
+import logic.constants.bot import AIMBOT_PERCISION
 
-```txt
-my_app/
-├── main.py
-└── logic/
-    ├── __init__.py
-    ├── constants/
-    │   ├── __init__.py
-    │   └── player.py      # NUMBER_PLAYERS = 10
-    └── computer/
-        ├── __init__.py
-        └── aimbot.py      # we are here
-
-We are writing imports inside `logic/computer/aimbot.py`.
+# RELATIVE: start from this package, HAS LEADING . OR ..(go up)
+from .constants.player import NUMBER_PLAYERS # 1) Inside logic/__init__.py  (see tree above)
+from .constants.bot import AIMBOT_PRECISION
+# 2) Inside logic/constants/bot.py
+from .. import game   # go UP one package (logic) and import game.py as module "game"
 ```
-
-## Absolute import (start from the top, “normal” way)
-
-```python
-# logic/computer/aimbot.py
-from logic.constants.player import NUMBER_PLAYERS
-```
-
-Read as: “From the top-level package `logic`, go into `constants.player`, import `NUMBER_PLAYERS`.”
-
-* Always starts with the full package name (`logic`).
-* Easy to read, doesn’t depend on where this file lives.
-
-## Relative import 
-```text
-(start from *this* package) .computer.module.func (go down one package), OR ..computer.module.func (go up one package)
-```
-
-```python
-# logic/computer/aimbot.py
-from ..constants.player import NUMBER_PLAYERS
-```
-
-Read as: “From `logic.computer`, go up one package (`..` → `logic`), then into `constants.player`, import `NUMBER_PLAYERS`.”
-Reasons we use relative imports inside a package:
-
-* They make imports shorter when you’re deep in subpackages.
-* They keep imports working even if the top-level package gets renamed.
-* They’re handy in `__init__.py` to pull internal stuff up into a clean public API.
-
-## 3. Simple rules to remember for Import
-
-```python
-# absolute import (no leading dots)
-import logic
-import logic.player
-
-# relative from-import (dots allowed)
-from logic import player
-from .player import <module/func/variable/class>       # same package
-from ..constants import <module/func/variable/class>  # parent package
-```
+* REASON WE USE RELATIVE IMPORTS INSIDE A PACKAGE:
+They make imports shorter when you’re deep in subpackages.
+They keep imports working even if the top-level package gets renamed.
+They’re handy in `__init__.py` to pull internal stuff up into a clean public API.
 
 ### Gotcha: Import runs the module code once
 
@@ -204,41 +158,31 @@ if __name__ == "__main__":
 * If you run `python script.py` → `__name__` is `"__main__"` → `main()` runs.
 * If you `import script` → `__name__` is `"script"` → `main()` does **not** auto-run.
 
-# **Virtual Environments Venv**
-
-
-**Purpose:**
-
-```text
-venv = isolated Python env per project
-use venv to avoid global package/version conflicts
-after activation: only use `python` + `pip`
-```
+# Virtual Environments (venv)
 ```bash
-Create venv (classic):
-# Windows
+# PURPOSE: Why venv?
+- Isolated Python per project (no version conflicts)
+- Keeps global Python clean
+- Lets each project have its own deps (Flask, SQLAlchemy, etc.)
+- Easy to recreate from requirements.txt / pyproject.toml
+# Create venv (classic)
 py -m venv venv
-
-Create venv (uv):
+# Create venv (uv)
 uv venv venv
 
-Activate venv:
-# Windows cmd
+# Activate venv (Windows cmd)
 .\venv\Scripts\activate.bat
-# Windows PowerShell
+# Activate venv (Windows PowerShell)
 .\venv\Scripts\activate.ps1
+# AFTER ACTIVATION: only use `python` + `pip`
+
+# Use venv:
+# `python` now points to venv's Python
+python my_app.py       # MUST use `python`, not `py` or `python3`
+pip install PACKAGE    # classic
+uv add PACKAGE         # if using uv
+deactivate             # optional
 ```
-
-**Use venv:**
-
-```bash
-activate venv  # `python` now points to venv's Python
-python my_app.py       # MUST Use python to run code, not py or python3, will run app using venv's interpreter + packages
-pip install PACKAGE       # classic
-uv add PACKAGE            # if using uv
-deactivate                # optional
-```
-
 ## **Requirements.txt / pyproject.toml:**
 
 ```text
@@ -292,27 +236,20 @@ unittest vs pytest
 ```python
 def add_values(a, b): # code to test
     return a + b
-
 # test file: test_add_values.py
 def test_add_values():
     result = add_values(2, 3)  # Act
     assert result == 5         # Assert
-
-# Other Examples
-# 1) Simple assert
+# Other Examples 1) Simple assert
 def test_uppercase():
     assert "abc".upper() == "ABC"
-
 # 2) Multiple asserts
 def test_len_and_membership():
     data = [1, 2, 3]
     assert len(data) == 3
     assert 2 in data
-
-
 # Testing exceptions
 import pytest # MUST IMPORT TO USE pytest.raises
-
 def test_add_values_invalid():
     with pytest.raises(TypeError):
         add_values([1], [2])  # invalid type giving list instead of number
@@ -324,14 +261,6 @@ def test_parse_int_invalid():
 def test_divide_by_zero():
     with pytest.raises(ZeroDivisionError):
         1 / 0
-
-# 4) Class-based tests
-class TestMath:
-    def test_add(self):
-        assert 1 + 1 == 2
-
-    def test_minus(self):
-        assert 5 - 3 == 2
 ```
 ```text
 common exception types for pytest.raises:
@@ -346,8 +275,8 @@ common exception types for pytest.raises:
 We use pytest fixtures to set up reusable, consistent test “starting states” instead of copy-pasting setup code into every test.
 That setup goes in a fixture(the function name below the decorator), and tests just ask for it by name.
 We use pytest fixtures to set up reusable, consistent test “starting states” instead of copy-pasting setup code into every test.
-import pytest
 ```python
+import pytest
 class BankAccount:
     def __init__(self):
         self.balance = 0
@@ -421,33 +350,22 @@ bob.display()    # inside display: self == bob
 ## **Instance vs Class – Attributes & Methods**
 
 ```text
-Definitions
-
-Instance attribute
-- stored on the object itself (self.attr)
-- usually created in __init__
-- each object can have different values
+Instance attribute (Normal / Usual attribute)
+stored on the object itself (self.attr), usually created in __init__, each object can have different values.
+Allows us to store data specific to each object (each student has their own name, grade, etc.) 
 
 Class attribute
-- stored on the class object (ClassName.attr)
-- defined once in the class body, outside methods
-- shared by all instances
+stored on the class object (ClassName.attr), defined once in the class body, shared by ALL instances, and readable from ANY method
+- WHY: store shared config/constants for all objects to use, such as (school_name, TAX_RATE, INTEREST_RATE), something that applies to all "accounts" in a BankAccount() class
 
-Instance method
-- defined with: def method(self, ...)
-- self = the instance that called the method
-- can use instance attributes (self.x) and class attributes (ClassName.Y)
+Instance method (Normal / Usual Method)
+- defined with: def method(self, ...) ---> self = the instance that called the method.
+- WHY: behavior that depends on that object’s data (deposit, withdraw, introduce, etc.)
 
 Class method
-- defined with @classmethod + def method(cls, ...)
-- cls = the class (Student, BankAccount, etc.)
-- usually works with class attributes or used as an alternate constructor
-
-Why we use them
-- instance attribute: store data specific to each object (each student has their own name, grade, etc.)
-- class attribute: store shared config/constants for all objects (school_name, TAX_RATE, MAX_SIZE)
-- instance method: behavior that depends on that object’s data (deposit, withdraw, introduce, etc.)
-- class method: behavior for the class as a whole (change shared settings, or create objects in special ways like from_string)
+- defined with @classmethod and takes cls (the class) instead of self (an instance)
+- used to work with class-level data/settings or to build objects in special ways (alternate constructors)
+- WHY: behavior that belongs to “the class as a whole,” not one specific object
 ```
 
 **Key differences Method vs Instance Attribute:**
@@ -1065,7 +983,7 @@ def feedback():                # ← this is the *view function*
   - Browser sends: `POST /login` with body `username=ryan&password=secret`
   - In view: use `request.form` to read `"username"` / `"password"`.
 
-```text
+```python
 - request.form["field"]          # strict, KeyError if missing
 - request.form.get("field")      # safer, returns None if missing
 - request.form.get("field", "")  # safer with default
@@ -1378,45 +1296,5 @@ def get_user(user_id):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### Relationship patterns
-**One-to-Many:**
-- Example: User -> Task
-- One User has many Tasks
-- Each Task has exactly ONE User
-- Implemented with FK on the "many" side:
-    Task.user_id -> User.id
-
-**Many-to-Many:**
-- Example: Task <-> Tag
-- One Task: many Tags
-- One Tag: many Tasks
-- Implemented with association table:
-    task_tag(task_id FK -> task.id,
-             tag_id FK -> tag.id)
 
 
