@@ -1221,15 +1221,14 @@ def create_product():
 
 
 
-## db.realtionship(), db.foreignkey(), cascade behaviours
+## db.realtionship(), db.foreignkey(), cascade behaviours and back_populates
 ```
 
-db.ForeignKey("user.id"):
-“what is a ForeignKey?” → a referential / relationship constraint that links two tables.
+db.ForeignKey("user.id"): Links ROWS in DATABASE
 A FK is constraint on a column that says: “This column must match a primary key in another table.”
 - Used inside db.Column on CHILD model. CHILD MODEL ALWAYS HAS FOREIGN KEY
 - DB constraint: child value must exist in parent table.
-- Defines direction: Task is child, User is parent.
+- Defines direction: Task is child, User is parent. (see below)
 Example: user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
 db.ForeignKey("user.id") → "user" = parent table, "id" = parent column, and whichever model defines this column is the CHILD.
 
@@ -1239,8 +1238,10 @@ db.relationship("Model")
 - Must match the ForeignKey on the other model.
 Example: tasks = db.relationship("Task", back_populates="assignee")
 
-back_populates
-- back_populates is used inside your model classes, specifically inside each db.relationship() call, to connect two sides of a relationship (see below) 
+back_populates: links ATTRIBUTES in PYTHON - ORM thing
+ORM = maps Python classes/objects to DB tables/rows so you can use user.name instead of writing raw SQL
+
+- back_populates used inside db.relationship() call, to connect two sides of a relationship allowing you to do user.name or user.email instead of writing raw SQL (see below) 
 ONE TO MANY: One child and One parent. The parent is the model that has one, and the child is the model that has many. CHILD IS ALWAYS THE MODEL WITH THE FOREIGN KEY (SEE BELOW)
 MANY TO MANY: no child no parents they are equals
 
@@ -1251,7 +1252,7 @@ Cascade behaviors
 "all"             = all major cascades enabled
 "save-update"     = If you add ONLY the parent to the session, SQLAlchemy also saves the new children, useful when parent + new children are created before the same commit. Works because the children are linked to the parent via relationship()
 
-
+Reminder: back_populate is a 2 way relationship for Python Objects, foreign key is 1 way relationship for the DB
 ```
 ```python
 #EXAMPLE OF ALL 4
@@ -1321,9 +1322,6 @@ stmt = select(User).where(User.role == "admin").order_by(User.username)
 # This translates roughly to: 
 SELECT * FROM user WHERE role = 'admin' ORDER BY username;
 ```
-
----
-
 ### Execution
 once you have your statement ready (.select(),.where()...)you must explicitly run it using the session.
 `db.session.execute(stmt)`:  It sends the SQL statement to the database, runs it, and returns a Result object
@@ -1333,8 +1331,6 @@ stmt = select(User).where(User.id == 1)
 # Run the query
 result = db.session.execute(stmt)
 ```
-
----
 
 ### Retrieving Results
 
@@ -1379,6 +1375,22 @@ def get_user(user_id):
     user = db.get_or_404(User, user_id)
     return {"username": user.username}
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
