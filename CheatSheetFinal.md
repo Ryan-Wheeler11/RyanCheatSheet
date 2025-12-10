@@ -1,9 +1,6 @@
 # **1. Creating and importing a simple module**
 
 ## Step 1 – Make a module file
-
-**`my_print.py`**
-
 ```python
 # my_print.py
 # This file is a **module** called `my_print`.
@@ -26,8 +23,7 @@ if __name__ == "__main__":
     main()
 ```
 
-Key points:
-
+* Key points:
 * `import my_print` loads the **whole module** and runs its top-level code once.
 * You use `module_name.thing` to access variables/functions defined inside.
 * `if __name__ == "__main__":` makes the `main()` run **only** when you run `python main.py`, not when you import `main` from somewhere else.
@@ -158,7 +154,7 @@ if __name__ == "__main__":
 * If you run `python script.py` → `__name__` is `"__main__"` → `main()` runs.
 * If you `import script` → `__name__` is `"script"` → `main()` does **not** auto-run.
 
-# Virtual Environments (venv)
+## Virtual Environments (venv)
 ```bash
 # PURPOSE: Why venv?
 - Isolated Python per project (no version conflicts)
@@ -271,7 +267,7 @@ common exception types for pytest.raises:
 - IndexError: index out of range in list/string (e.g., lst[100] on a short list)
 ```
 
-## Fixture example (consistent setup)
+# `pytest.fixtures`  
 We use pytest fixtures to set up reusable, consistent test “starting states” instead of copy-pasting setup code into every test.
 That setup goes in a fixture(the function name below the decorator), and tests just ask for it by name.
 We use pytest fixtures to set up reusable, consistent test “starting states” instead of copy-pasting setup code into every test.
@@ -321,14 +317,22 @@ class Student:
 ## **instantiation (creating objects)**
 
 ```python
-john = Student("John Doe", "A01234567")
-bob  = Student("Bob", "A07654321")
+class Student:
+    def __init__(self, name, student_number):  # runs when you do Student("Name", "ID")
+        self.name = name                       # instance attribute on the object
+        self.student_number = student_number
+    def display(self):                         # instance method
+        print(self.name, self.student_number)
 
-john.display()   # inside display: self == john
-bob.display()    # inside display: self == bob
+
+john = Student("John Doe", "A01234567")  # call the Student class → creates a NEW Student object in memory, that object is stored in the variable 'john'
+bob  = Student("Bob", "A07654321")  # creates another Student object → stored in 'bob'
+
+john.display()   # calls Student.display(john)  → inside the method, self == john
+bob.display()    # calls Student.display(bob)   → inside the method, self == bob
 ```
 
-## **init** (initializer):
+## `__init__` (initializer):
 
 ```text
 - special method called right AFTER the instance is created
@@ -337,14 +341,12 @@ bob.display()    # inside display: self == bob
 - you call it indirectly by doing: obj = ClassName(...)
 ```
 
-## **self:**
+## `self`:
+* first param of instance methods
+* refers to the current instance (john, bob, etc.)
+* used to read/write attributes: self.name, self.program
+* NEVER used outside the class block
 
-```text
-- first param of instance methods
-- refers to the current instance (john, bob, etc.)
-- used to read/write attributes: self.name, self.program
-- NEVER used outside the class block
-```
 
 
 ## **Instance vs Class – Attributes & Methods**
@@ -379,24 +381,18 @@ Class method
 class Student:
     school_name = "BCIT"  # class attribute
 
-    def __init__(self, name):
+    def __init__(self, name): # instance method (most common)
         self.name = name  # instance attribute
 
-    # instance method (most common)
-    def introduce(self):
-        # self = specific student (s1, s2, etc.)
+    def introduce(self):     # instance method (most common)
         print(f"Hi, I'm {self.name} from {self.school_name}")
 
-    # class method
-    @classmethod
-    def set_school(cls, new_name):
-        # cls = the class Student
+    @classmethod     # class method
+    def set_school(cls, new_name): # cls = the class Student
         cls.school_name = new_name
 
-    # another class method as "alternate constructor"
-    @classmethod
-    def from_string(cls, data: str):
-        # "Ryan" -> Student("Ryan")
+    @classmethod     # another class method as "alternate constructor"
+    def from_string(cls, data: str): 
         name = data.strip()
         return cls(name)
 ```
@@ -416,10 +412,10 @@ s2.introduce()
 ```
 # Abstract Base Classes 
 An Abstract Base Class (often referred to as an ABC) is a mechanism used to define "generic classes." These classes define a specific public interface (a set of methods) without actually implementing the logic for them. 
-Like a strict blueprint, tells subclasses what methods they need without telling them how those methods should work.
+Like a strict blueprint, tells subclasses what methods they need without telling them how those methods should work. **You cannot instantiate an ABC**
 
-**Why:** 
-* Enforcing interfaces(insures child classes follow a guideline to prevent issues down the line)
+**Why we use it:** 
+* Enforcing methods on child classes(insures child classes follow a guideline to prevent issues down the line)
 * Polymorphism(Allows the use of different objects the same way) --- Example below
 
 
@@ -439,7 +435,6 @@ class Animal(ABC):
         pass
 
 # 3. Define Child Classes (Concrete Classes)
-
 class Dog(Animal):
     # We MUST implement sound(), or this class will error
     def sound(self):
@@ -472,20 +467,18 @@ elif type(my_animal) == Dog:
 # You don't care if it is a Cow or a Dog, you just know it is an "Animal", so it MUST have a .sound() method.
 my_animal.sound()
 ```
+---
+## Encapsulation (concept)
 ```text
-Encapsulation (concept)
 - hide internal details, expose a clean public interface
 - goal: control how attributes are read/changed, prevent invalid state
 - in Python: done by naming conventions + @property, not true hard privacy
 ```
 
-## Public vs “Private” attributes
+### Public vs “Private” attributes
 
 ```text
-Public attribute
-- normal name: balance
-- meant to be used from outside the class
-- no leading underscore
+Public attribute: normal name /(ie. balance), meant to be used from outside the class, NO LEADING UNDERSCORE
 
 "Protected" attribute (by convention)
 - single leading underscore: _balance
@@ -497,15 +490,6 @@ Public attribute
 - Python renames it internally to _ClassName__balance
 - makes accidental access harder, but still not true security
 ```
-
-```python
-class BankAccount:
-    def __init__(self, owner, balance):
-        self.owner = owner      # public
-        self._balance = balance # "protected" by convention
-        self.__pin = "1234"     # "private" (name-mangled)
-```
-
 ## Properties & `@property` (property decoration)
 
 ```text
