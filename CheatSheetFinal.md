@@ -716,7 +716,7 @@ Mapped Class:
 - A normal Python class that SQLAlchemy has registered as a DB table.
 - anything that inherits `(Base)` or `(db.model)`
 
-Mapped types: Integer, String, Text, Boolean, DateTime, Float, ForeignKey, etc.
+Mapped types: Integer, String, Text, Boolean, DateTime, Float, etc.
 - Tell SQLAlchemy what kind of data the column stores + how to map it to Python.
 
 Column constraints: primary_key=True, nullable=False, unique=True, default=..., server_default=...
@@ -1132,15 +1132,13 @@ Plain SQLAlchemy init.py
     engine = create_engine("sqlite:///db.db")
     Session = sessionmaker(bind=engine)
     class Base(DeclarativeBase): pass
-    class Product(Base): ...
-        - Models inherit from Base (Product(Base)).
+    class Product(Base): # ALL Models inherit from Base
 
-Flask-SQLAlchemy init.py
-    - The SQLAlchemy() extension builds all of this for you:
-    - Instead You just do:
+Flask-SQLAlchemy init.py (Does the same as above)
+ - The SQLAlchemy() extension builds all of this for you, Instead You just do:
     db = SQLAlchemy()
     db.init_app(app)
-    class Product(db.Model): ...
+    class Product(db.Model): # ALL Models inherit from db.model
 ```
 
 ```python
@@ -1220,6 +1218,176 @@ def create_product():
     # GET: show the form
     return render_template("products/new.html")
 ```
+
+
+
+## db.realtionship(), db.foreignkey(), cascade behaviours
+```
+
+db.ForeignKey("user.id"):
+“what is a ForeignKey?” → a referential / relationship constraint that links two tables.
+A FK is constraint on a column that says: “This column must match a primary key in another table.”
+- Used inside db.Column on CHILD model. CHILD MODEL ALWAYS HAS FOREIGN KEY
+- DB constraint: child value must exist in parent table.
+- Defines direction: Task is child, User is parent.
+Example: user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+db.ForeignKey("user.id") → "user" = parent table, "id" = parent column, and whichever model defines this column is the CHILD.
+
+db.relationship("Model")
+- Python-side link between models (no DB column created).
+- Lets you access related objects (parent→children / child→parent).
+- Must match the ForeignKey on the other model.
+Example: tasks = db.relationship("Task", back_populates="assignee")
+
+back_populates
+- back_populates is used inside your model classes, specifically inside each db.relationship() call, to connect two sides of a relationship (see below) 
+ONE TO MANY: One child and One parent. The parent is the model that has one, and the child is the model that has many. CHILD IS ALWAYS THE MODEL WITH THE FOREIGN KEY (SEE BELOW)
+MANY TO MANY: no child no parents they are equals
+
+Cascade behaviors
+- Tell SQLAlchemy what happens to children when parent changes.
+"delete"          = delete children when parent deleted
+"delete-orphan"   = delete children if parent deleted OR relationship broken
+"all"             = all major cascades enabled
+"save-update"     = If you add ONLY the parent to the session, SQLAlchemy also saves the new children, useful when parent + new children are created before the same commit. Works because the children are linked to the parent via relationship()
+
+
+```
+```python
+#EXAMPLE OF ALL 4
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    tasks = db.relationship(
+        "Task",
+        back_populates="assignee",
+        cascade="all, delete-orphan" #Cascade goes inside parent
+    )
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id")) # Child defines user table and points to id column
+    assignee = db.relationship("User", back_populates="tasks")
+```
+
+
+
+
+
+
+# Database Operations (CRUD)
+
+### Session
+In SQLAlchemy, a Session is like a temporary staging area for your database changes. 
+
+```python
+db.session.add(obj) # takes python object and adds it as a row to the DB staged changes
+db.session.commit()  # Pushes staged changes to database
+
+
+user = User(name="Ryan", email="ryan@example.com") # call the User class to create a NEW User object in memory → __init__ sets user.name and user.email to these values
+# this only makes the Python object; it’s NOT in the database until db.session.add(user) + db.session.commit()
+db.session.add(user)                                # stage it in the session (pending insert)
+db.session.commit()                                 # send all staged changes as 1 transaction → write to DB
+```
+
+
+---
+
+### Building a `select()` query
+
+```py
+# Construct a complex query
+stmt = select(User).where(User.role == "admin").order_by(User.username)
+
+# This translates roughly to:
+SELECT * FROM user WHERE role = 'admin' ORDER BY username;
+```
+
+`select()` : Just like we did in data base it Selects from a specific table. and what it rutern is the selected coloumn in that specific table
+
+```py
+from sqlalchemy import select
+# Construct the query (nothing happens in the DB yet)
+stmt = select(User)
+# stmt is just a varibale 
+```
+
+`.where()` : Adds a SQL WHERE clause to filter results. `.orderby()`:Adds a `SQL ORDER BY` clause to sort the results.
+
+```py
+# Construct a complex query
+stmt = select(User).where(User.role == "admin").order_by(User.username)
+
+# This translates roughly to: 
+SELECT * FROM user WHERE role = 'admin' ORDER BY username;
+```
+
+---
+
+### Execution
+once you have your statement ready (.select(),.where()...)you must explicitly run it using the session.
+`db.session.execute(stmt)`:  It sends the SQL statement to the database, runs it, and returns a Result object
+
+```py
+stmt = select(User).where(User.id == 1)
+# Run the query
+result = db.session.execute(stmt)
+```
+
+---
+
+### Retrieving Results
+
+The `Result` object returned by `execute()` is flexible. You must tell SQLAlchemy how you want to format that data.
+```text
+.scalars(): convert row tuples → ORM objects, returns a lazy iterable (you can loop over it, but it's not a plain list)
+.scalars().all(): same objects, but forces the query + builds a regular Python list of them
+```
+```py
+stmt = select(User)
+users = db.session.execute(stmt).scalars().all()
+# users is now a list: [<User 1>, <User 2>, ...]
+```
+```text
+.scalar_one() expect exactly 1 row; 0 or >1 rows = error (use when "missing/duplicate = BUG", e.g. primary key)
+.scalar_one_or_none(): expect 0 or 1 row; >1 rows = error (MultipleResultsFound) #   0 rows -> None, 1 row -> object
+```
+
+
+
+```py
+# Use case: Checking if a user exists (e.g., for login).
+stmt = select(User).where(User.email == "missing@example.com")
+user = db.session.execute(stmt).scalar_one_or_none()
+if user is None:
+    print("User not found")
+```
+
+---
+
+### Special Helper
+
+* `db.get_or_404(Model, id)` : What it does: This is a Flask-SQLAlchemy convenience method (not pure SQLAlchemy). It attempts to retrieve a row by its primary key.
+  Behavior:
+* If found: Returns the object. If not found: Immediately aborts the request and returns a **404 Not Found HTTP error** to the browser.
+
+```py
+# In a Flask route
+@app.route('/user/<int:user_id>')
+def get_user(user_id):
+    # If user_id doesn't exist, the code stops here and sends a 404 to the user
+    user = db.get_or_404(User, user_id)
+    return {"username": user.username}
+```
+
+
+
+
+
+
+
+
+
 
 
 
