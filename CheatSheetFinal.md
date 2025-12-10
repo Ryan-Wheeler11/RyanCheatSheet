@@ -207,7 +207,7 @@ if __name__ == "__main__":
 # **Virtual Environments Venv**
 
 
-**Purpose (1-liners):**
+**Purpose:**
 
 ```text
 venv = isolated Python env per project
@@ -275,7 +275,7 @@ dependencies = [
 
 # **Pytest, Unit Test, @pytest.fixtures**
 
-## Core rules box
+### Core rules box: pytest
 
 ```text
 pytest
@@ -283,117 +283,49 @@ pytest
 - run: pytest
 - test files: test_*.py or *_test.py
 - test funcs: def test_something():
-```
 
-```text
 unittest vs pytest
 - unittest: built-in, class-based (TestCase, setUp/tearDown)
-- pytest: external package, simple function tests, still supports classes + fixtures
-- this course: pytest is the main tool
+- pytest: external package, simple function tests, still supports classes + fixtures. Our course focuses on pytest
 ```
 
-## Basic test skeleton (value check)
-
 ```python
-# code to test
-def add_values(a, b):
+def add_values(a, b): # code to test
     return a + b
 
 # test file: test_add_values.py
 def test_add_values():
     result = add_values(2, 3)  # Act
     assert result == 5         # Assert
-```
 
-## Testing exceptions
-
-```python
-import pytest
-
-def test_add_values_invalid():
-    with pytest.raises(TypeError):
-        add_values([1], [2])
-```
-
-```python
-import pytest
-
-def test_parse_int_invalid():
-    with pytest.raises(ValueError):
-        parse_int("abc")
-```
-
-```text
-common exception types for pytest.raises:
-- ValueError: wrong *value* type/format (e.g., int("abc"), parse_int("cat"))
-- TypeError: wrong *type* of argument (e.g., 1 + "2", func(expects_list="abc"))
-- ZeroDivisionError: dividing by zero (e.g., 1 / 0)
-- KeyError: missing key in dict (e.g., d["missing_key"])
-- IndexError: index out of range in list/string (e.g., lst[100] on a short list)
-```
-
-## Fixture example (consistent setup)
-
-```python
-import pytest
-
-class Cart:
-    def __init__(self):
-        self.items = []
-    def add(self, x):
-        self.items.append(x)
-
-@pytest.fixture
-def empty_cart():
-    return Cart()  # setup shared object
-
-def test_cart_starts_empty(empty_cart):
-    assert empty_cart.items == []
-
-def test_cart_adds_items(empty_cart):
-    empty_cart.add("apple")
-    assert empty_cart.items == ["apple"]
-```
-
-```text
-@fixture = reusable setup
-- define with @pytest.fixture
-- tests get it by listing name as parameter
-- fixture sets up consistent test data/state for one or more tests
-- keeps tests clean by avoiding repeated setup code
-```
-
-## Common pytest patterns a prof will test
-
-**1) Simple assert**
-
-```python
+# Other Examples
+# 1) Simple assert
 def test_uppercase():
     assert "abc".upper() == "ABC"
-```
 
-**2) Multiple asserts**
-
-```python
+# 2) Multiple asserts
 def test_len_and_membership():
     data = [1, 2, 3]
     assert len(data) == 3
     assert 2 in data
-```
 
-**3) Testing function that raises**
 
-```python
-import pytest
+# Testing exceptions
+import pytest # MUST IMPORT TO USE pytest.raises
+
+def test_add_values_invalid():
+    with pytest.raises(TypeError):
+        add_values([1], [2])  # invalid type giving list instead of number
+
+def test_parse_int_invalid():
+    with pytest.raises(ValueError): 
+        parse_int("abc")
 
 def test_divide_by_zero():
     with pytest.raises(ZeroDivisionError):
         1 / 0
-```
 
-**4) Class-based tests**
-
-```python
+# 4) Class-based tests
 class TestMath:
     def test_add(self):
         assert 1 + 1 == 2
@@ -401,6 +333,38 @@ class TestMath:
     def test_minus(self):
         assert 5 - 3 == 2
 ```
+```text
+common exception types for pytest.raises:
+- ValueError: wrong *value* CORRECT TYPE (e.g., int("abc") expects a string so CORRECT TYPE, but cant turn the VALUE of abc into an int.)
+- TypeError: wrong *type* of argument (e.g., 1 + "2", func(expects_list="abc"))
+- ZeroDivisionError: dividing by zero (e.g., 1 / 0)
+- KeyError: missing key in dict (e.g., d["missing_key"])
+- IndexError: index out of range in list/string (e.g., lst[100] on a short list)
+```
+
+## Fixture example (consistent setup)
+We use pytest fixtures to set up reusable, consistent test “starting states” instead of copy-pasting setup code into every test.
+That setup goes in a fixture(the function name below the decorator), and tests just ask for it by name.
+We use pytest fixtures to set up reusable, consistent test “starting states” instead of copy-pasting setup code into every test.
+import pytest
+```python
+class BankAccount:
+    def __init__(self):
+        self.balance = 0
+    def deposit(self, amount):
+        self.balance += amount
+
+# fixture: returns a fresh account with $100 loaded
+@pytest.fixture
+def account_with_100():
+    acct = BankAccount()
+    acct.deposit(100)
+    return acct
+
+def test_account_starts_with_100(account_with_100):
+    assert account_with_100.balance == 100
+```
+
 
 # **Classes & Objects**
 
@@ -746,18 +710,13 @@ Polymorphism = your code can treat everything as a Vehicle, call start(), and ge
 ORM (Object Relational Mapping)
 - Technique that maps Python objects ↔ rows in relational DB tables.
 - You work with classes/objects instead of writing raw SQL strings.
-- SQLAlchemy ORM:
-    - Class = table
-    - Instance = row
-    - Attribute = column
+- SQLAlchemy ORM: Class = table    Instance = row      Attribute = column
 
 Mapped Class:
 - A normal Python class that SQLAlchemy has registered as a DB table.
-- In standalone SQLAlchemy (2.0 style):
+- anything that inherits `(Base)` or `(db.model)`
 
-Mapped types:
-- The Python/SQLAlchemy types you use for columns.
-- Examples: Integer, String, Text, Boolean, DateTime, Float, ForeignKey, etc.
+Mapped types: Integer, String, Text, Boolean, DateTime, Float, ForeignKey, etc.
 - Tell SQLAlchemy what kind of data the column stores + how to map it to Python.
 
 Column constraints: primary_key=True, nullable=False, unique=True, default=..., server_default=...
@@ -944,15 +903,15 @@ def create_app(config=None):
 
     return app                         # give the caller the ready-to-use app
 ```
-**Why use create_app() instead of global `app = Flask(__name__)`?**
-
+#### **Why use create_app() instead of global `app = Flask(__name__)`?**
+```text
 - Can create **multiple app instances** with different configs (dev/prod/tests).
 - Avoids **circular imports** (routes/blueprints live in separate files).
 - **Easier testing**: tests just call `create_app(test_config)`.
 
 - Without factory: one global app made at import time = less flexible.
 - With factory: call a function that **builds + configures + wires + returns** a fresh app.
-
+```
 
 
 
@@ -1031,15 +990,14 @@ def create_app():
 ```
 
 ### URL building with `url_for`
-- builds URL from **view/endpoint name**, not hardcoded path.
+url_for(endpoint, **values):
+- Builds URLs from view/endpoint name (not hard-coded strings).
+- Updates automatically if route path changes.
+- Fills dynamic parts: url_for("pages.profile", user_id=1) -> "/user/1"
 ```python
 from flask import url_for, redirect  # import in Python files
 
-@app.route("/about")
-def about(): ...                       # endpoint name = "about"
-url_for("about")                       # "/about"
-
-@app.route("/user/<int:id>")
+@app.route("/user/<int:id>")           # Dynamic Route
 def user_profile(id): ...              # endpoint name = "user_profile"
 url_for("user_profile", id=3)          # "/user/3" (fills <int:id>)
 
@@ -1047,24 +1005,20 @@ url_for("user_profile", id=3)          # "/user/3" (fills <int:id>)
 url_for("pages.home")                  # uses blueprint namespace
 
 redirect(url_for("about"))             # build URL then redirect
+
+url_for("pages.profile", user_id=42)
+# endpoint = "pages.profile"
+# values  = {"user_id": 42}
+# result  = "/user/42"
 ```
 ## Dynamic URL Paremeter
 ```python
-"/user/id" → # static path.
-Only matches exactly /user/id.
-id here is just plain text in the URL.
-
 "/user/<id>" → # DYNAMIC URL PARAMETER.
 Matches /user/ryan, /user/123, /user/anything.
 The part in < > becomes a function argument.
 
 "/user/<int:id>" → # DYNAMIC URL PARAMETER WITH TYPE CONVERTER.
 #FLASK WILL CONVERT "5" --> 5
-```
-```python
-@app.route("/user/id")
-def static_example():
-    return "This only matches /user/id"
 
 @app.route("/user/<id>")
 def dynamic_example(id):
@@ -1072,6 +1026,7 @@ def dynamic_example(id):
 ```
 
 
+```
 # **Flask: Views and Requests**
 ## Views: The functions under Routes (`@app.route`, `@pages_bp.route`)
 **The same view(function) handles GET and POST, and chooses logic based on request.method**
@@ -1265,8 +1220,6 @@ def create_product():
     # GET: show the form
     return render_template("products/new.html")
 ```
-
-
 
 
 
